@@ -1,0 +1,8 @@
+{
+  "name": "SkillFlash",
+  "description": "A micro-learning platform for Gen Z featuring vertical educational video feeds, gamified XP progression, and creator monetization.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
