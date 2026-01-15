@@ -9,6 +9,9 @@ import Leaderboard from './components/Leaderboard';
 import CreatorDashboard from './components/CreatorDashboard';
 import Inbox from './components/Inbox';
 import StreakWidget from './components/StreakWidget';
+import AndroidInstallPrompt from './components/AndroidInstallPrompt';
+import Onboarding from './components/Onboarding';
+import SupportModal from './components/SupportModal';
 import { processStreak } from './services/streakService';
 import { Home, Search, PlusSquare, User as UserIcon, Trophy, MessageSquare, Settings as SettingsIcon, ChevronLeft, FileText, ListChecks, Lightbulb, ChevronRight, Zap, Users, LogOut } from 'lucide-react';
 
@@ -29,19 +32,27 @@ const App: React.FC = () => {
     ],
     streakCount: 5,
     lastActiveDate: new Date().toISOString().split('T')[0],
-    streakFreezes: 1
+    streakFreezes: 1,
+    onboardingCompleted: false, // Start false for "Real" app flow
+    walletBalance: 240
   });
 
   const [activeTab, setActiveTab] = useState<'feed' | 'profile' | 'courses' | 'leaderboard' | 'inbox' | 'search' | 'creator_view'>('feed');
   const [isCreatorStudioOpen, setIsCreatorStudioOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [expandedHub, setExpandedHub] = useState<'summary' | 'note' | 'tip' | 'creator' | null>(null);
+  const [supportCreator, setSupportCreator] = useState<string | null>(null);
 
   useEffect(() => {
     setUser(prev => processStreak(prev));
   }, []);
 
-  const handleAction = useCallback((type: 'LIKE' | 'SAVE' | 'WATCH' | 'TIP' | 'QUIZ_CORRECT' | 'SUPPORT' | 'SHARE') => {
+  const handleAction = useCallback((type: 'LIKE' | 'SAVE' | 'WATCH' | 'TIP' | 'QUIZ_CORRECT' | 'SUPPORT' | 'SHARE', creatorName?: string) => {
+    if (type === 'TIP' && creatorName) {
+      setSupportCreator(creatorName);
+      return;
+    }
+    
     setUser(prev => {
       let addedXp = 0;
       switch (type) {
@@ -49,7 +60,6 @@ const App: React.FC = () => {
         case 'LIKE': addedXp = XP_PER_LIKE; break;
         case 'SAVE': addedXp = 10; break;
         case 'SUPPORT': addedXp = 25; break;
-        case 'TIP': addedXp = 50; break;
         case 'QUIZ_CORRECT': addedXp = XP_QUIZ_BONUS; break;
         case 'SHARE': addedXp = 5; break;
       }
@@ -57,9 +67,31 @@ const App: React.FC = () => {
     });
   }, []);
 
+  if (!user.onboardingCompleted) {
+    return (
+      <Onboarding 
+        onComplete={(interests) => {
+          const weights: Record<string, number> = {};
+          interests.forEach(cat => weights[cat] = 100);
+          setUser(prev => ({ ...prev, onboardingCompleted: true, interestWeights: weights }));
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col bg-black text-white overflow-hidden relative selection:bg-[#00FF9D]/30">
       
+      <AndroidInstallPrompt />
+
+      {supportCreator && (
+        <SupportModal 
+          creatorName={supportCreator} 
+          onClose={() => setSupportCreator(null)} 
+          onSuccess={() => handleAction('SUPPORT')}
+        />
+      )}
+
       {activeTab === 'feed' && (
         <div className="absolute top-10 right-6 z-[60]">
           <button onClick={() => setActiveTab('search')} className="w-12 h-12 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center text-white active:scale-90 transition-all hover:border-[#00FF9D]/50 shadow-2xl">
@@ -78,7 +110,6 @@ const App: React.FC = () => {
             >
               <ChevronLeft size={28} />
             </button>
-            
             <div className="flex flex-col items-center">
                <h2 key={expandedHub || 'default'} className="text-xl font-black tracking-tight uppercase text-white animate-title-pop">
                   {expandedHub === 'summary' ? 'AI Summaries' : 
@@ -88,14 +119,12 @@ const App: React.FC = () => {
                </h2>
                {!expandedHub && <span className="text-[9px] font-bold text-[#00FF9D] uppercase tracking-[0.2em] opacity-80">Management Console</span>}
             </div>
-
             <div className="w-12" />
           </header>
           
           <div className="flex-1 overflow-y-auto pb-32">
             {!expandedHub ? (
               <div className="p-6 space-y-4">
-                {/* 4 Primary Settings Options */}
                 <div className="grid grid-cols-1 gap-3">
                   <button onClick={() => setExpandedHub('creator')} className="w-full flex items-center justify-between p-6 bg-zinc-900/40 rounded-[2rem] border border-orange-500/10 active:scale-95 transition-all group overflow-hidden relative">
                     <div className="flex items-center gap-4 relative z-10">
@@ -135,27 +164,10 @@ const App: React.FC = () => {
                     </div>
                     <ChevronRight size={20} className="text-zinc-700 group-hover:text-[#FF007A] transition-colors" />
                   </button>
-
-                  <button onClick={() => setExpandedHub('tip')} className="w-full flex items-center justify-between p-6 bg-zinc-900/40 rounded-[2rem] border border-blue-500/10 active:scale-95 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 shadow-lg shadow-blue-500/20">
-                        <Lightbulb size={24} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-black text-white">Genius Tips</p>
-                        <p className="text-[10px] text-zinc-500 uppercase font-bold">Pro Shortcuts</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-zinc-700 group-hover:text-blue-400 transition-colors" />
-                  </button>
                 </div>
 
                 <div className="pt-6 border-t border-white/5 space-y-3">
-                   <button className="w-full flex items-center justify-between p-5 bg-zinc-900/20 rounded-2xl text-zinc-400 hover:text-white transition-colors font-bold text-sm uppercase">
-                      Edit Profile
-                      <ChevronRight size={16} />
-                   </button>
-                   <button className="w-full flex items-center gap-3 p-5 text-red-500 font-bold text-sm uppercase">
+                   <button className="w-full flex items-center gap-3 p-5 text-red-500 font-bold text-sm uppercase text-left">
                       <LogOut size={18} />
                       Logout
                    </button>
@@ -193,25 +205,12 @@ const App: React.FC = () => {
                     ))}
                   </div>
                 )}
-                {expandedHub === 'tip' && (
-                  <div className="p-6 space-y-4">
-                    {MOCK_VIDEOS.map(v => (
-                      <div key={v.id} className="bg-blue-500/5 p-6 rounded-3xl border border-blue-500/10 flex items-start gap-4">
-                         <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 shrink-0">
-                           <Lightbulb size={20} />
-                         </div>
-                         <p className="text-zinc-200 text-sm leading-relaxed">"{v.quickTip || 'Remember to practice every day!'}"</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative">
         {activeTab === 'feed' && (
           <div className="h-full w-full snap-y-scroll bg-black">
@@ -223,11 +222,7 @@ const App: React.FC = () => {
         {activeTab === 'profile' && (
           <div className="h-full w-full overflow-y-auto p-6 pb-32 space-y-8 bg-zinc-950">
             <header className="flex items-center justify-between pt-12">
-              <button onClick={() => setActiveTab('feed')} className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl text-zinc-400 hover:text-white transition-all">
-                <ChevronLeft size={28} />
-              </button>
-              
-              {/* COLORFUL ANIMATED SETTINGS ICON */}
+              <button onClick={() => setActiveTab('feed')} className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl text-zinc-400 hover:text-white transition-all"><ChevronLeft size={28} /></button>
               <button 
                 onClick={() => setIsSettingsOpen(true)} 
                 className="w-12 h-12 relative flex items-center justify-center rounded-2xl active:scale-90 transition-all group"
@@ -249,11 +244,10 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-black text-white tracking-tighter uppercase">{user.username}</h1>
-                <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-widest mt-1">Sage Apprentice • SkillFlash</p>
+                <h1 className="text-3xl font-black text-white tracking-tighter uppercase text-left">{user.username}</h1>
+                <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-widest mt-1 text-left">Sage Apprentice • SkillFlash</p>
               </div>
             </div>
-            
             <StreakWidget user={user} onUpdate={setUser} />
             <GamificationWidget user={user} />
           </div>
@@ -262,30 +256,25 @@ const App: React.FC = () => {
         {activeTab === 'inbox' && <Inbox onBack={() => setActiveTab('feed')} />}
       </main>
 
-      {/* Bottom Navigation with Labels */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-3xl border-t border-white/5 px-2 py-3 flex items-center justify-around z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-3xl border-t border-white/5 px-2 py-3 flex items-center justify-around z-50 safe-pb">
         <button onClick={() => setActiveTab('feed')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 ${activeTab === 'feed' ? 'text-[#00FF9D]' : 'text-zinc-600'}`}>
           <Home size={24} />
           <span className="text-[10px] font-black uppercase tracking-tight">Home</span>
         </button>
-        
         <button onClick={() => setActiveTab('leaderboard')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 ${activeTab === 'leaderboard' ? 'text-[#FF007A]' : 'text-zinc-600'}`}>
           <Users size={24} />
           <span className="text-[10px] font-black uppercase tracking-tight">Friends</span>
         </button>
-
         <div className="relative -top-6">
           <button onClick={() => setIsCreatorStudioOpen(true)} className="bg-white text-black w-14 h-14 rounded-2xl flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(255,255,255,0.2)] active:scale-95 transition-all hover:bg-[#00FF9D]">
             <PlusSquare size={26} />
             <span className="text-[8px] font-black uppercase mt-0.5">Post</span>
           </button>
         </div>
-
         <button onClick={() => setActiveTab('inbox')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 ${activeTab === 'inbox' ? 'text-blue-400' : 'text-zinc-600'}`}>
           <MessageSquare size={24} />
           <span className="text-[10px] font-black uppercase tracking-tight">Inbox</span>
         </button>
-        
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 w-16 ${activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}`}>
           <UserIcon size={24} />
           <span className="text-[10px] font-black uppercase tracking-tight">Profile</span>

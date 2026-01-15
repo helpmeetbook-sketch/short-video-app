@@ -31,8 +31,10 @@ export interface User {
   watchedVideoIds: string[];
   notes: UserNote[];
   streakCount: number;
-  lastActiveDate: string; // ISO string
+  lastActiveDate: string;
   streakFreezes: number;
+  onboardingCompleted: boolean;
+  walletBalance: number;
 }
 
 export interface Video {
@@ -49,17 +51,14 @@ export interface Video {
   saves: number;
   quickTip?: string;
   quiz?: Quiz;
-  summary?: string[]; // AI-generated bullet points
+  summary?: string[];
 }
 
-export interface CreatorStats {
-  totalViews: number;
-  xpGenerated: number;
-  walletBalance: number;
-}
-
-export interface CategoryProgress {
-  category: Category;
-  completedVideos: number;
-  totalVideos: number;
+export interface Transaction {
+  id: string;
+  fromUser: string;
+  toCreator: string;
+  amount: number;
+  timestamp: string;
+  method: 'bKash' | 'Nagad' | 'XP';
 }
